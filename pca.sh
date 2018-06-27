@@ -6,4 +6,4 @@
 module load intel/2018.2
 module load openmpi/3.1.0
 module load anaconda2
-srun pca.py
+srun python pca.py
