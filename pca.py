@@ -4,6 +4,7 @@ import mpi4py #MPI package for cluster analysis
 import pandas as pd 
 import datetime 
 import numpy as np
+from sklearn.decomposition import PCA #PCA Package
 
 CONST_INTERVAL=5 #interval in seconds
 CONST_BEGINTIME='9:30:00.000000'
@@ -67,6 +68,23 @@ df=df.sort_values(['SYM_ROOT','DATE','increment'])
 
 #calculate the returns by ticker
 df=df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
+
+#reduce the number of varaibles for PCA
+df=df[['SYM_ROOT','increment','returns']]
+df = df[np.isfinite(df['returns'])]
+df = df.reset_index(drop=True)
+
+#reshape for PCA
+df=df.pivot(index='increment',columns='SYM_ROOT',values='returns')
+df_list=df.values.tolist()
+
+#start pca
+pca=PCA()
+res=pca.fit(df_list)
+
+eigenvalues=pca.explained_variance_
+eigenvalues_percent=pca.explained_variance_ratio_
+eigenvectors=pca.components_ 
 
 def group_increment_to_end(x):
 	#applied to group by function to increment to the end
