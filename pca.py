@@ -10,7 +10,51 @@ CONST_INTERVAL=5 #interval in seconds
 CONST_BEGINTIME='9:30:00.000000'
 CONST_ENDTIME='16:00:00.000000' 
 
-df=pd.read_csv("NBBOM_20170103nbbo.csv", nrows=40000)
+def group_increment_to_end(x):
+	#applied to group by function to increment to the end
+	first_row=x.iloc[0:1]
+	last_row=x.iloc[-1:]
+	if first_row['increment'].iloc[0]!=0:
+		first_increment=first_row['increment'].iloc[0]
+		while (first_increment>0):
+			new_row=first_row.copy()
+			first_increment=first_increment-1
+			new_row['increment'].iloc[0]=first_increment
+			x=x.append(new_row)
+	if last_row['increment'].iloc[0]<last_row['genjud_incre'].iloc[0]:
+		max_increment=last_row['genjud_incre'].iloc[0]
+		last_increment=last_row['increment'].iloc[0]
+		while(last_increment<max_increment):
+			new_row=last_row.copy()
+			last_increment=last_increment+1
+			new_row['increment'].iloc[0]=last_increment
+			x=x.append(new_row)
+	return x
+
+def expand_gap(x):
+	#function to expand gaps 
+	#iterate through to find gaps
+	x['tmp_diff']=x['increment'].shift(-1)-x['increment']
+	tmp_df=x[x['tmp_diff']>1]
+	for i in range (0, len(tmp_df)):
+		expand_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]
+		target_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]+tmp_df.iloc[i,tmp_df.columns.get_loc('tmp_diff')]
+		while (target_incre-expand_incre)>1:
+			tmp_row=tmp_df.iloc[i:i+1]
+			new_row=tmp_row.copy()
+			expand_incre=expand_incre+1
+			new_row['increment'].iloc[0]=expand_incre
+			x=x.append(new_row)
+	return x
+
+def calculate_return(x):
+	#function used to calculate the returns
+	x['returns']=(x['MIDPRICE']-x['MIDPRICE'].shift(1))/x['MIDPRICE'].shift(1)
+	return x
+
+begin=str(datetime.datetime.now())
+
+df=pd.read_csv("NBBOM_20170103nbbo.csv")
 
 df['TIME_M']=df['DATE'].astype(str)+' '+df['TIME_M']
 df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
@@ -86,44 +130,16 @@ eigenvalues=pca.explained_variance_
 eigenvalues_percent=pca.explained_variance_ratio_
 eigenvectors=pca.components_ 
 
-def group_increment_to_end(x):
-	#applied to group by function to increment to the end
-	first_row=x.iloc[0:1]
-	last_row=x.iloc[-1:]
-	if first_row['increment'].iloc[0]!=0:
-		first_increment=first_row['increment'].iloc[0]
-		while (first_increment>0):
-			new_row=first_row.copy()
-			first_increment=first_increment-1
-			new_row['increment'].iloc[0]=first_increment
-			x=x.append(new_row)
-	if last_row['increment'].iloc[0]<last_row['genjud_incre'].iloc[0]:
-		max_increment=last_row['genjud_incre'].iloc[0]
-		last_increment=last_row['increment'].iloc[0]
-		while(last_increment<max_increment):
-			new_row=last_row.copy()
-			last_increment=last_increment+1
-			new_row['increment'].iloc[0]=last_increment
-			x=x.append(new_row)
-	return x
+eigendf=pd.DataFrame(eigenvectors)
+eigendf.to_csv("eigenvector.csv")
+eigenvalues.tofile("eigenvalues.csv",sep='\n')
+eigenvalues_percent.tofile("eigenvalues_percent.csv",sep='\n')
 
-def expand_gap(x):
-	#function to expand gaps 
-	#iterate through to find gaps
-	x['tmp_diff']=x['increment'].shift(-1)-x['increment']
-	tmp_df=x[x['tmp_diff']>1]
-	for i in range (0, len(tmp_df)):
-		expand_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]
-		target_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]+tmp_df.iloc[i,tmp_df.columns.get_loc('tmp_diff')]
-		while (target_incre-expand_incre)>1:
-			tmp_row=tmp_df.iloc[i:i+1]
-			new_row=tmp_row.copy()
-			expand_incre=expand_incre+1
-			new_row['increment'].iloc[0]=expand_incre
-			x=x.append(new_row)
-	return x
+end=str(datetime.datetime.now())
+lengths=[]
+lengths.append(begin)
+lengths.append(end)
 
-def calculate_return(x):
-	#function used to calculate the returns
-	x['returns']=(x['MIDPRICE']-x['MIDPRICE'].shift(1))/x['MIDPRICE'].shift(1)
-	return x
+with open("time.txt",'w') as file:
+	for l in lengths:
+		file.write(l+"\n")
