@@ -33,7 +33,13 @@ df=df.loc[mask]
 df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
 df['diff_sec']=df['diff'].dt.seconds 
 df['increment']=np.floor(df['diff_sec']/CONST_INTERVAL).astype(int) #the time incremental in CONST_INTERVAL
-df=df.groupby(['SYM_ROOT','increment']).last().ffill().reset_index() #only keep the last observation per interval. forward fill if the value is missing
+df=df.groupby(['SYM_ROOT','DATE','increment']).last().ffill().reset_index() #only keep the last observation per interval. forward fill if the value is missing
+
+#now expand any gaps in between
+df=df.groupby(['SYM_ROOT','DATE']).apply(expand_gap)
+df = df.reset_index(drop=True)
+df=df.sort_values(['SYM_ROOT','DATE','increment'])
+df = df.reset_index(drop=True)
 
 df['gen_jud_diff'] = df['judgement']-df['genesis']
 df['gen_jud_diff_sec']=df['gen_jud_diff'].dt.seconds
@@ -54,10 +60,13 @@ df=df.groupby(['SYM_ROOT','DATE']).apply(group_increment_to_end)
 df = df.reset_index(drop=True)
 
 #re-select columns 
-df=df[['SYM_ROOT','increment','MIDPRICE']]
+df=df[['SYM_ROOT','increment','MIDPRICE','DATE']]
 
 #re-sort the columns
-df=df.sort_values(['SYM_ROOT','increment'])
+df=df.sort_values(['SYM_ROOT','DATE','increment'])
+
+#calculate the returns by ticker
+df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
 
 def group_increment_to_end(x):
 	#applied to group by function to increment to the end
@@ -78,4 +87,25 @@ def group_increment_to_end(x):
 			last_increment=last_increment+1
 			new_row['increment'].iloc[0]=last_increment
 			x=x.append(new_row)
+	return x
+
+def expand_gap(x):
+	#function to expand gaps 
+	#iterate through to find gaps
+	x['tmp_diff']=x['increment'].shift(-1)-x['increment']
+	tmp_df=x[x['tmp_diff']>1]
+	for i in range (0, len(tmp_df)):
+		expand_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]
+		target_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]+tmp_df.iloc[i,tmp_df.columns.get_loc('tmp_diff')]
+		while (target_incre-expand_incre)>1:
+			tmp_row=tmp_df.iloc[i:i+1]
+			new_row=tmp_row.copy()
+			expand_incre=expand_incre+1
+			new_row['increment'].iloc[0]=expand_incre
+			x=x.append(new_row)
+	return x
+
+def calculate_return(x):
+	#function used to calculate the returns
+	x['returns']=(x['MIDPRICE']-x['MIDPRICE'].shift(1))/x['MIDPRICE'].shift(1)
 	return x
