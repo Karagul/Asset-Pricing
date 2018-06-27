@@ -66,7 +66,7 @@ df=df[['SYM_ROOT','increment','MIDPRICE','DATE']]
 df=df.sort_values(['SYM_ROOT','DATE','increment'])
 
 #calculate the returns by ticker
-df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
+df=df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
 
 def group_increment_to_end(x):
 	#applied to group by function to increment to the end
