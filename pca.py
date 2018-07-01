@@ -54,7 +54,7 @@ def calculate_return(x):
 
 begin=str(datetime.datetime.now())
 
-df=pd.read_csv("NBBOM_20170103nbbo.csv")
+df=pd.read_csv("NBBOM_20140102nbbo.csv")
 
 df['TIME_M']=df['DATE'].astype(str)+' '+df['TIME_M']
 df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
