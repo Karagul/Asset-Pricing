@@ -1,6 +1,6 @@
 #PCA Analysis Python Code
 
-import mpi4py #MPI package for cluster analysis
+from mpi4py import MPI #MPI package for cluster analysis
 import pandas as pd 
 import datetime 
 import numpy as np
@@ -9,6 +9,9 @@ from sklearn.decomposition import PCA #PCA Package
 CONST_INTERVAL=5 #interval in seconds
 CONST_BEGINTIME='9:30:00.000000'
 CONST_ENDTIME='16:00:00.000000' 
+
+#get the mpi object 
+comm=MPI.COMM_WORLD
 
 def group_increment_to_end(x):
 	#applied to group by function to increment to the end
@@ -52,94 +55,98 @@ def calculate_return(x):
 	x['returns']=(x['MIDPRICE']-x['MIDPRICE'].shift(1))/x['MIDPRICE'].shift(1)
 	return x
 
-begin=str(datetime.datetime.now())
+def pca_analysis(name):
 
-df=pd.read_csv("NBBOM_20140102nbbo.csv")
+	begin=str(datetime.datetime.now())
+	name_date=filter(str.isdigit, name) #the date indicated on the trade and quote files
+	df=pd.read_csv(name)
 
-df['TIME_M']=df['DATE'].astype(str)+' '+df['TIME_M']
-df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
-df['judgement']=df['DATE'].astype(str) + ' ' + CONST_ENDTIME  #end time
-df['TIME_M']=pd.to_datetime(df['TIME_M'],format='%Y%m%d %H:%M:%S.%f')
-df['genesis']=pd.to_datetime(df['genesis'],format='%Y%m%d %H:%M:%S.%f')
-df['judgement']=pd.to_datetime(df['judgement'],format='%Y%m%d %H:%M:%S.%f')
+	df['TIME_M']=df['DATE'].astype(str)+' '+df['TIME_M']
+	df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
+	df['judgement']=df['DATE'].astype(str) + ' ' + CONST_ENDTIME  #end time
+	df['TIME_M']=pd.to_datetime(df['TIME_M'],format='%Y%m%d %H:%M:%S.%f')
+	df['genesis']=pd.to_datetime(df['genesis'],format='%Y%m%d %H:%M:%S.%f')
+	df['judgement']=pd.to_datetime(df['judgement'],format='%Y%m%d %H:%M:%S.%f')
 
-#select certain columns that I want 
-df=df[['TIME_M','genesis','SYM_ROOT','BEST_BID','BEST_ASK','judgement','DATE']]
+	#select certain columns that I want 
+	df=df[['TIME_M','genesis','SYM_ROOT','BEST_BID','BEST_ASK','judgement','DATE']]
 
-#change the symbol list to category,to increase the performance of groupby
-df['SYM_ROOT']=df['SYM_ROOT'].astype('category')
+	#change the symbol list to category,to increase the performance of groupby
+	df['SYM_ROOT']=df['SYM_ROOT'].astype('category')
 
-#select the data of certain time range 
-begin_time=datetime.datetime.strptime(CONST_BEGINTIME,'%H:%M:%S.%f').time()
-end_time=datetime.datetime.strptime(CONST_ENDTIME,'%H:%M:%S.%f').time()
-mask=(df['TIME_M'].dt.time>=begin_time)&(df['TIME_M'].dt.time<=end_time)
-df=df.loc[mask]
+	#select the data of certain time range 
+	begin_time=datetime.datetime.strptime(CONST_BEGINTIME,'%H:%M:%S.%f').time()
+	end_time=datetime.datetime.strptime(CONST_ENDTIME,'%H:%M:%S.%f').time()
+	mask=(df['TIME_M'].dt.time>=begin_time)&(df['TIME_M'].dt.time<=end_time)
+	df=df.loc[mask]
 
-df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
-df['diff_sec']=df['diff'].dt.seconds 
-df['increment']=np.floor(df['diff_sec']/CONST_INTERVAL).astype(int) #the time incremental in CONST_INTERVAL
-df=df.groupby(['SYM_ROOT','DATE','increment']).last().ffill().reset_index() #only keep the last observation per interval. forward fill if the value is missing
+	df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
+	df['diff_sec']=df['diff'].dt.seconds 
+	df['increment']=np.floor(df['diff_sec']/CONST_INTERVAL).astype(int) #the time incremental in CONST_INTERVAL
+	df=df.groupby(['SYM_ROOT','DATE','increment']).last().ffill().reset_index() #only keep the last observation per interval. forward fill if the value is missing
 
-#now expand any gaps in between
-df=df.groupby(['SYM_ROOT','DATE']).apply(expand_gap)
-df = df.reset_index(drop=True)
-df=df.sort_values(['SYM_ROOT','DATE','increment'])
-df = df.reset_index(drop=True)
+	#now expand any gaps in between
+	df=df.groupby(['SYM_ROOT','DATE']).apply(expand_gap)
+	df = df.reset_index(drop=True)
+	df=df.sort_values(['SYM_ROOT','DATE','increment'])
+	df = df.reset_index(drop=True)
 
-df['gen_jud_diff'] = df['judgement']-df['genesis']
-df['gen_jud_diff_sec']=df['gen_jud_diff'].dt.seconds
-df['genjud_incre']=np.floor(df['gen_jud_diff_sec']/CONST_INTERVAL).astype(int)
+	df['gen_jud_diff'] = df['judgement']-df['genesis']
+	df['gen_jud_diff_sec']=df['gen_jud_diff'].dt.seconds
+	df['genjud_incre']=np.floor(df['gen_jud_diff_sec']/CONST_INTERVAL).astype(int)
 
-#calculate the mid price 
-df['MIDPRICE']=(df['BEST_BID']+df['BEST_ASK'])/2
-#If the first quote has only a bid or an ask, then the mid=max(bid, ask)
-df.ix[df["BEST_BID"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_BID"]==0, df.columns.get_loc('BEST_ASK')]
-df.ix[df["BEST_ASK"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_ASK"]==0, df.columns.get_loc('BEST_BID')]
+	#calculate the mid price 
+	df['MIDPRICE']=(df['BEST_BID']+df['BEST_ASK'])/2
+	#If the first quote has only a bid or an ask, then the mid=max(bid, ask)
+	df.ix[df["BEST_BID"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_BID"]==0, df.columns.get_loc('BEST_ASK')]
+	df.ix[df["BEST_ASK"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_ASK"]==0, df.columns.get_loc('BEST_BID')]
 
-#re-select columns 
-df=df[['TIME_M','SYM_ROOT','increment','genjud_incre','DATE','MIDPRICE']]
+	#re-select columns 
+	df=df[['TIME_M','SYM_ROOT','increment','genjud_incre','DATE','MIDPRICE']]
 
-df=df.groupby(['SYM_ROOT','DATE']).apply(group_increment_to_end)
+	df=df.groupby(['SYM_ROOT','DATE']).apply(group_increment_to_end)
 
-#reset the index
-df = df.reset_index(drop=True)
+	#reset the index
+	df = df.reset_index(drop=True)
 
-#re-select columns 
-df=df[['SYM_ROOT','increment','MIDPRICE','DATE']]
+	#re-select columns 
+	df=df[['SYM_ROOT','increment','MIDPRICE','DATE']]
 
-#re-sort the columns
-df=df.sort_values(['SYM_ROOT','DATE','increment'])
+	#re-sort the columns
+	df=df.sort_values(['SYM_ROOT','DATE','increment'])
 
-#calculate the returns by ticker
-df=df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
+	#calculate the returns by ticker
+	df=df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
 
-#reduce the number of varaibles for PCA
-df=df[['SYM_ROOT','increment','returns']]
-df = df[np.isfinite(df['returns'])]
-df = df.reset_index(drop=True)
+	#reduce the number of varaibles for PCA
+	df=df[['SYM_ROOT','increment','returns']]
+	df = df[np.isfinite(df['returns'])]
+	df = df.reset_index(drop=True)
 
-#reshape for PCA
-df=df.pivot(index='increment',columns='SYM_ROOT',values='returns')
-df_list=df.values.tolist()
+	#reshape for PCA
+	df=df.pivot(index='increment',columns='SYM_ROOT',values='returns')
+	df_list=df.values.tolist()
 
-#start pca
-pca=PCA()
-res=pca.fit(df_list)
+	#start pca
+	pca=PCA()
+	res=pca.fit(df_list)
 
-eigenvalues=pca.explained_variance_
-eigenvalues_percent=pca.explained_variance_ratio_
-eigenvectors=pca.components_ 
+	eigenvalues=pca.explained_variance_
+	eigenvalues_percent=pca.explained_variance_ratio_
+	eigenvectors=pca.components_ 
 
-eigendf=pd.DataFrame(eigenvectors)
-eigendf.to_csv("eigenvector.csv")
-eigenvalues.tofile("eigenvalues.csv",sep='\n')
-eigenvalues_percent.tofile("eigenvalues_percent.csv",sep='\n')
+	eigendf=pd.DataFrame(eigenvectors)
+	eigendf.to_csv(name+"eigenvector.csv")
+	eigenvalues.tofile(name+"eigenvalues.csv",sep='\n')
+	eigenvalues_percent.tofile(name+"eigenvalues_percent.csv",sep='\n')
 
-end=str(datetime.datetime.now())
-lengths=[]
-lengths.append(begin)
-lengths.append(end)
+	end=str(datetime.datetime.now())
+	lengths=[]
+	lengths.append(begin)
+	lengths.append(end)
 
-with open("time.txt",'w') as file:
-	for l in lengths:
-		file.write(l+"\n")
+	with open(name+"time.txt",'w') as file:
+		for l in lengths:
+			file.write(l+"\n")
+
+pca_analysis("NBBOM_20140102nbbo.csv")
