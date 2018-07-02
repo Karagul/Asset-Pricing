@@ -159,11 +159,12 @@ if rank == 0:
 		if t[0:4]=='NBBO' and t[-3:]=='csv':
 			#confirms that it is the file we want to analyse 
 			arr.append(t)
-	data=[[] for _ in range(size)]
+	chunks=[[] for _ in range(size)]
 	for i, chunk in enumerate(arr):
-		data[i % size].append(chunk)
+		chunks[i % size].append(chunk)
 else:
 	data = None
-data = comm.scatter(data, root=0)
+	chunks=None
+data = comm.scatter(chunks, root=0)
 for d in data: 
 	pca_analysis(data)
