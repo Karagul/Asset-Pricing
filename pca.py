@@ -12,6 +12,8 @@ CONST_ENDTIME='16:00:00.000000'
 
 #get the mpi object 
 comm=MPI.COMM_WORLD
+size = comm.Get_size()
+rank = comm.Get_rank()
 
 def group_increment_to_end(x):
 	#applied to group by function to increment to the end
@@ -149,4 +151,18 @@ def pca_analysis(name):
 		for l in lengths:
 			file.write(l+"\n")
 
-pca_analysis("NBBOM_20140102nbbo.csv")
+if rank == 0:
+	tmparr=os.listdir("./")
+	arr=[]
+	for t in tmparr:
+		if t[0:4]=='NBBO' and t[-3:]=='csv':
+			#confirms that it is the file we want to analyse 
+			arr.append(t)
+	data=[[] for _ in range(size)]
+	for i, chunk in enumerate(arr):
+		data[i % size].append(chunk)
+else:
+    data = None
+data = comm.scatter(data, root=0)
+for d in data: 
+	pca_analysis(data)
