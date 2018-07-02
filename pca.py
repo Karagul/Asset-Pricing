@@ -167,4 +167,4 @@ else:
 	chunks=None
 data = comm.scatter(chunks, root=0)
 for d in data: 
-	pca_analysis(data)
+	pca_analysis(d)
