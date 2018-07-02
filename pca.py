@@ -162,7 +162,7 @@ if rank == 0:
 	for i, chunk in enumerate(arr):
 		data[i % size].append(chunk)
 else:
-    data = None
+	data = None
 data = comm.scatter(data, root=0)
 for d in data: 
 	pca_analysis(data)
