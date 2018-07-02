@@ -5,6 +5,7 @@ import pandas as pd
 import datetime 
 import numpy as np
 from sklearn.decomposition import PCA #PCA Package
+import os
 
 CONST_INTERVAL=5 #interval in seconds
 CONST_BEGINTIME='9:30:00.000000'
