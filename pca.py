@@ -139,16 +139,16 @@ def pca_analysis(name):
 	eigenvectors=pca.components_ 
 
 	eigendf=pd.DataFrame(eigenvectors)
-	eigendf.to_csv(name+"eigenvector.csv")
-	eigenvalues.tofile(name+"eigenvalues.csv",sep='\n')
-	eigenvalues_percent.tofile(name+"eigenvalues_percent.csv",sep='\n')
+	eigendf.to_csv(name_date+"eigenvector.csv")
+	eigenvalues.tofile(name_date+"eigenvalues.csv",sep='\n')
+	eigenvalues_percent.tofile(name_date+"eigenvalues_percent.csv",sep='\n')
 
 	end=str(datetime.datetime.now())
 	lengths=[]
 	lengths.append(begin)
 	lengths.append(end)
 
-	with open(name+"time.txt",'w') as file:
+	with open(name_date+"time.txt",'w') as file:
 		for l in lengths:
 			file.write(l+"\n")
 
