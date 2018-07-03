@@ -104,6 +104,11 @@ def pca_analysis(name):
 	df.ix[df["BEST_BID"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_BID"]==0, df.columns.get_loc('BEST_ASK')]
 	df.ix[df["BEST_ASK"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_ASK"]==0, df.columns.get_loc('BEST_BID')]
 
+	#filter the column for bid-ask spreads exceeds $10 and 1000 bps
+	df['bps']=(df['BEST_ASK']-df['BEST_BID'])/df['MIDPRICE']
+	df['spread']=df['BEST_ASK']-df['BEST_BID']
+	df=df[((df['bps']>0.1) & (df['spread']>10))]
+
 	#re-select columns 
 	df=df[['TIME_M','SYM_ROOT','increment','genjud_incre','DATE','MIDPRICE']]
 
