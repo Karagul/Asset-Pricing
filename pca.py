@@ -83,6 +83,17 @@ def pca_analysis(name):
 	mask=(df['TIME_M'].dt.time>=begin_time)&(df['TIME_M'].dt.time<=end_time)
 	df=df.loc[mask]
 
+	#calculate the mid price 
+	df['MIDPRICE']=(df['BEST_BID']+df['BEST_ASK'])/2
+	#If the first quote has only a bid or an ask, then the mid=max(bid, ask)
+	df.ix[df["BEST_BID"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_BID"]==0, df.columns.get_loc('BEST_ASK')]
+	df.ix[df["BEST_ASK"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_ASK"]==0, df.columns.get_loc('BEST_BID')]
+
+	#filter the column for bid-ask spreads exceeds $10 and 1000 bps
+	df['bps']=(df['BEST_ASK']-df['BEST_BID'])/df['MIDPRICE']
+	df['spread']=df['BEST_ASK']-df['BEST_BID']
+	df=df[((df['bps']>0.1) & (df['spread']>10))]
+
 	df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
 	df['diff_sec']=df['diff'].dt.seconds 
 	df['increment']=np.floor(df['diff_sec']/CONST_INTERVAL).astype(int) #the time incremental in CONST_INTERVAL
@@ -97,17 +108,6 @@ def pca_analysis(name):
 	df['gen_jud_diff'] = df['judgement']-df['genesis']
 	df['gen_jud_diff_sec']=df['gen_jud_diff'].dt.seconds
 	df['genjud_incre']=np.floor(df['gen_jud_diff_sec']/CONST_INTERVAL).astype(int)
-
-	#calculate the mid price 
-	df['MIDPRICE']=(df['BEST_BID']+df['BEST_ASK'])/2
-	#If the first quote has only a bid or an ask, then the mid=max(bid, ask)
-	df.ix[df["BEST_BID"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_BID"]==0, df.columns.get_loc('BEST_ASK')]
-	df.ix[df["BEST_ASK"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_ASK"]==0, df.columns.get_loc('BEST_BID')]
-
-	#filter the column for bid-ask spreads exceeds $10 and 1000 bps
-	df['bps']=(df['BEST_ASK']-df['BEST_BID'])/df['MIDPRICE']
-	df['spread']=df['BEST_ASK']-df['BEST_BID']
-	df=df[((df['bps']>0.1) & (df['spread']>10))]
 
 	#re-select columns 
 	df=df[['TIME_M','SYM_ROOT','increment','genjud_incre','DATE','MIDPRICE']]
