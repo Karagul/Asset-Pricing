@@ -74,9 +74,6 @@ def pca_analysis(name):
 	#select certain columns that I want 
 	df=df[['TIME_M','genesis','SYM_ROOT','BEST_BID','BEST_ASK','judgement','DATE']]
 
-	#change the symbol list to category,to increase the performance of groupby
-	df['SYM_ROOT']=df['SYM_ROOT'].astype('category')
-
 	#select the data of certain time range 
 	begin_time=datetime.datetime.strptime(CONST_BEGINTIME,'%H:%M:%S.%f').time()
 	end_time=datetime.datetime.strptime(CONST_ENDTIME,'%H:%M:%S.%f').time()
