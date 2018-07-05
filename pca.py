@@ -101,7 +101,7 @@ def pca_analysis(name):
 	df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
 	df['diff_sec']=df['diff'].dt.seconds 
 	df['increment']=np.floor(df['diff_sec']/CONST_INTERVAL).astype(int) #the time incremental in CONST_INTERVAL
-	df=df.groupby(['SYM_ROOT','DATE','increment']).tail(1).reset_index(drop=True) #only keep the last observation per interval. forward fill if the value is missing
+	df=df.groupby(['SYM_ROOT','DATE','increment']).last().ffill().reset_index() #only keep the last observation per interval. forward fill if the value is missing
 
 	#now expand any gaps in between
 	df=df.groupby(['SYM_ROOT','DATE']).apply(expand_gap)
