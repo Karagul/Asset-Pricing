@@ -16,42 +16,15 @@ comm=MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 
-def group_increment_to_end(x):
-	#applied to group by function to increment to the end
-	first_row=x.iloc[0:1]
-	last_row=x.iloc[-1:]
-	if first_row['increment'].iloc[0]!=0:
-		first_increment=first_row['increment'].iloc[0]
-		while (first_increment>0):
-			new_row=first_row.copy()
-			first_increment=first_increment-1
-			new_row['increment'].iloc[0]=first_increment
-			x=x.append(new_row)
-	if last_row['increment'].iloc[0]<last_row['genjud_incre'].iloc[0]:
-		max_increment=last_row['genjud_incre'].iloc[0]
-		last_increment=last_row['increment'].iloc[0]
-		while(last_increment<max_increment):
-			new_row=last_row.copy()
-			last_increment=last_increment+1
-			new_row['increment'].iloc[0]=last_increment
-			x=x.append(new_row)
-	return x
-
 def expand_gap(x):
 	#function to expand gaps 
-	#iterate through to find gaps
-	x['tmp_diff']=x['increment'].shift(-1)-x['increment']
-	tmp_df=x[x['tmp_diff']>1]
-	for i in range (0, len(tmp_df)):
-		expand_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]
-		target_incre = tmp_df.iloc[i,tmp_df.columns.get_loc('increment')]+tmp_df.iloc[i,tmp_df.columns.get_loc('tmp_diff')]
-		while (target_incre-expand_incre)>1:
-			tmp_row=tmp_df.iloc[i:i+1]
-			new_row=tmp_row.copy()
-			expand_incre=expand_incre+1
-			new_row['increment'].iloc[0]=expand_incre
-			x=x.append(new_row)
-	return x
+	max_lim=x['genjud_incre'].iloc[0]
+	incre_list=list(range(0,max_lim))
+	incre_arr=np.array(incre_list).reshape(max_lim, 1)
+	tmpdf=pd.DataFrame(incre_arr, columns=["increment"])
+	res_df=x.merge(tmpdf,on="increment",how="outer")
+	res_df.fillna(method='ffill', inplace=True)
+	return res_df
 
 def calculate_return(x):
 	#function used to calculate the returns
@@ -98,22 +71,20 @@ def pca_analysis(name):
 	df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
 	df['diff_sec']=df['diff'].dt.seconds 
 	df['increment']=np.floor(df['diff_sec']/CONST_INTERVAL).astype(int) #the time incremental in CONST_INTERVAL
-	df=df.groupby(['SYM_ROOT','DATE','increment']).tail(1).reset_index() #only keep the last observation per interval. forward fill if the value is missing
+	df=df.groupby(['SYM_ROOT','DATE','increment']).tail(1).reset_index(drop=True) #only keep the last observation per interval. forward fill if the value is missing
+
+	#calculate the maximum increment value
+	df['gen_jud_diff'] = df['judgement']-df['genesis']
+	df['gen_jud_diff_sec']=df['gen_jud_diff'].dt.seconds
+	df['genjud_incre']=np.floor(df['gen_jud_diff_sec']/CONST_INTERVAL).astype(int)
+
+	df=df[['TIME_M','SYM_ROOT','increment','genjud_incre','DATE','MIDPRICE']]
 
 	#now expand any gaps in between
 	df=df.groupby(['SYM_ROOT','DATE']).apply(expand_gap)
 	df = df.reset_index(drop=True)
 	df=df.sort_values(['SYM_ROOT','DATE','increment'])
 	df = df.reset_index(drop=True)
-
-	df['gen_jud_diff'] = df['judgement']-df['genesis']
-	df['gen_jud_diff_sec']=df['gen_jud_diff'].dt.seconds
-	df['genjud_incre']=np.floor(df['gen_jud_diff_sec']/CONST_INTERVAL).astype(int)
-
-	#re-select columns 
-	df=df[['TIME_M','SYM_ROOT','increment','genjud_incre','DATE','MIDPRICE']]
-
-	df=df.groupby(['SYM_ROOT','DATE']).apply(group_increment_to_end)
 
 	#reset the index
 	df = df.reset_index(drop=True)
