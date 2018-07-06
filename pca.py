@@ -24,7 +24,7 @@ def expand_gap(x):
 	tmpdf=pd.DataFrame(incre_arr, columns=["increment"])
 	res_df=x.merge(tmpdf,on="increment",how="outer")
 	res_df=res_df.sort_values(['increment']) #sort before ffill
-	res_df.fillna(method='ffill', inplace=True)
+	res_df=res_df.fillna(method='ffill').fillna(method='bfill')
 	return res_df
 
 def calculate_return(x):
