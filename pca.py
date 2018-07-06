@@ -86,14 +86,8 @@ def pca_analysis(name):
 	df=df.sort_values(['SYM_ROOT','DATE','increment'])
 	df = df.reset_index(drop=True)
 
-	#reset the index
-	df = df.reset_index(drop=True)
-
 	#re-select columns 
 	df=df[['SYM_ROOT','increment','MIDPRICE','DATE']]
-
-	#re-sort the columns
-	df=df.sort_values(['SYM_ROOT','DATE','increment'])
 
 	#calculate the returns by ticker
 	df=df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
