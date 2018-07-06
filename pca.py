@@ -18,7 +18,7 @@ rank = comm.Get_rank()
 
 def expand_gap(x):
 	#function to expand gaps 
-	max_lim=x['genjud_incre'].iloc[0]
+	max_lim=x['genjud_incre'].iloc[0]+1
 	incre_list=list(range(0,max_lim))
 	incre_arr=np.array(incre_list).reshape(max_lim, 1)
 	tmpdf=pd.DataFrame(incre_arr, columns=["increment"])
