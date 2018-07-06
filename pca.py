@@ -23,7 +23,7 @@ def expand_gap(x):
 	incre_arr=np.array(incre_list).reshape(max_lim, 1)
 	tmpdf=pd.DataFrame(incre_arr, columns=["increment"])
 	res_df=x.merge(tmpdf,on="increment",how="outer")
-	res_df=df.res_df(['SYM_ROOT','DATE','increment']) #sort before ffill
+	res_df=res_df.sort_values(['SYM_ROOT','DATE','increment']) #sort before ffill
 	res_df.fillna(method='ffill', inplace=True)
 	return res_df
 
