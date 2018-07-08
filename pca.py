@@ -55,7 +55,7 @@ def pca_analysis(name):
 	df=df.loc[mask]
 
 	#we smooth the quotes by second first, to make sure that when we use increment in unit of second, the noise of quotes will not comeinto play
-	df['TIME_S']=df.TIME_M.map(lambda t:t.strftime('%Y%m%d %H:%M:%S'))
+	df['TIME_S']=df['TIME_S']=df["TIME_M"].dt.floor('s')
 	df=df.groupby(['SYM_ROOT','DATE','TIME_S']).tail(1).reset_index(drop=True) #only keep the last observation per interval. forward fill if the value is missing	
 
 	#calculate the mid price 
