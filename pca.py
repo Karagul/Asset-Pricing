@@ -38,6 +38,9 @@ def pca_analysis(name):
 	name_date=filter(str.isdigit, name) #the date indicated on the trade and quote files
 	df=pd.read_csv(name)
 
+	#drop the preferred shares
+	df=df[df['SYM_SUFFIX'].isnull()]
+
 	df['TIME_M']=df['DATE'].astype(str)+' '+df['TIME_M']
 	df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
 	df['judgement']=df['DATE'].astype(str) + ' ' + CONST_ENDTIME  #end time
