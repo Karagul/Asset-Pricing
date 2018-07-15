@@ -6,6 +6,7 @@ import datetime
 import numpy as np
 from sklearn.decomposition import PCA #PCA Package
 import os
+import zipfile #read the csv files directly
 
 CONST_INTERVAL=5 #interval in seconds
 CONST_BEGINTIME='9:30:00'
@@ -36,8 +37,11 @@ def pca_analysis(name):
 
 	begin=str(datetime.datetime.now())
 	name_date=filter(str.isdigit, name) #the date indicated on the trade and quote files
-	df=pd.read_csv(name)
-
+	#read the zip file and convert it to csv
+	with zipfile.ZipFile(name) as zip:
+		csv_name=name.replace("zip","csv")
+		with zip.open(csv_name) as csv:
+			df=pd.read_csv(csv)
 	df['TIME']=df['DATE'].astype(str)+' '+df['TIME']
 	df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
 	df['judgement']=df['DATE'].astype(str) + ' ' + CONST_ENDTIME  #end time
@@ -61,9 +65,9 @@ def pca_analysis(name):
 	df.ix[df["BO"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BO"]==0, df.columns.get_loc('BB')]
 
 	#filter the column for bid-ask spreads exceeds $10 and 1000 bps
-	df['bps']=(df['BO']-df['BB'])/df['MIDPRICE']
-	df['spread']=df['BO']-df['BB']
-	df=df[((df['bps']<0.1) | (df['spread']<10))]
+	#df['bps']=(df['BO']-df['BB'])/df['MIDPRICE']
+	#df['spread']=df['BO']-df['BB']
+	#df=df[((df['bps']<0.1) | (df['spread']<10))]
 
 	df['diff']=df['TIME']-df['genesis'] #get the time difference from the beginning
 	df['diff_sec']=df['diff'].dt.seconds 
@@ -124,7 +128,7 @@ if rank == 0:
 	tmparr=os.listdir("./")
 	arr=[]
 	for t in tmparr:
-		if t[0:4]=='NBBO' and t[-3:]=='csv':
+		if t[0:4]=='NBBO' and t[-3:]=='zip':
 			#confirms that it is the file we want to analyse 
 			arr.append(t)
 	chunks=[[] for _ in range(size)]

@@ -68,9 +68,9 @@ def pca_analysis(name):
 	df.ix[df["BEST_ASK"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_ASK"]==0, df.columns.get_loc('BEST_BID')]
 
 	#filter the column for bid-ask spreads exceeds $10 and 1000 bps
-	df['bps']=(df['BEST_ASK']-df['BEST_BID'])/df['MIDPRICE']
-	df['spread']=df['BEST_ASK']-df['BEST_BID']
-	df=df[((df['bps']<0.1) | (df['spread']<10))]
+	#df['bps']=(df['BEST_ASK']-df['BEST_BID'])/df['MIDPRICE']
+	#df['spread']=df['BEST_ASK']-df['BEST_BID']
+	#df=df[((df['bps']<0.1) | (df['spread']<10))]
 
 	df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
 	df['diff_sec']=df['diff'].dt.seconds 
