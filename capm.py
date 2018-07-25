@@ -1,16 +1,17 @@
-#CAPM regression in python
+#PCA Analysis Python Code
 
 from mpi4py import MPI #MPI package for cluster analysis
 import pandas as pd 
 import datetime 
 import numpy as np
 from sklearn import linear_model #package for linear regression
-import os
 import csv
+import os
+import zipfile #read the csv files directly
 
 CONST_INTERVAL=5 #interval in seconds
-CONST_BEGINTIME='9:30:00.000000'
-CONST_ENDTIME='16:00:00.000000' 
+CONST_BEGINTIME='9:30:00'
+CONST_ENDTIME='16:00:00' 
 
 #get the mpi object 
 comm=MPI.COMM_WORLD
@@ -37,74 +38,69 @@ def capm_analysis(name):
 
 	begin=str(datetime.datetime.now())
 	name_date=filter(str.isdigit, name) #the date indicated on the trade and quote files
-	df=pd.read_csv(name)
-
-	#drop the preferred shares
-	df=df[df['SYM_SUFFIX'].isnull()]
-
-	df['TIME_M']=df['DATE'].astype(str)+' '+df['TIME_M']
+	#read the zip file and convert it to csv
+	with zipfile.ZipFile(name) as zip:
+		csv_name=name.replace("zip","csv")
+		with zip.open(csv_name) as csv:
+			df=pd.read_csv(csv)
+	df['TIME']=df['DATE'].astype(str)+' '+df['TIME']
 	df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
 	df['judgement']=df['DATE'].astype(str) + ' ' + CONST_ENDTIME  #end time
-	df['TIME_M']=pd.to_datetime(df['TIME_M'],format='%Y%m%d %H:%M:%S.%f')
-	df['genesis']=pd.to_datetime(df['genesis'],format='%Y%m%d %H:%M:%S.%f')
-	df['judgement']=pd.to_datetime(df['judgement'],format='%Y%m%d %H:%M:%S.%f')
+	df['TIME']=pd.to_datetime(df['TIME'],format='%Y%m%d %H:%M:%S')
+	df['genesis']=pd.to_datetime(df['genesis'],format='%Y%m%d %H:%M:%S')
+	df['judgement']=pd.to_datetime(df['judgement'],format='%Y%m%d %H:%M:%S')
 
 	#select certain columns that I want 
-	df=df[['TIME_M','genesis','SYM_ROOT','BEST_BID','BEST_ASK','judgement','DATE']]
+	df=df[['TIME','genesis','SYMBOL','BB','BO','judgement','DATE']]
 
 	#select the data of certain time range 
-	begin_time=datetime.datetime.strptime(CONST_BEGINTIME,'%H:%M:%S.%f').time()
-	end_time=datetime.datetime.strptime(CONST_ENDTIME,'%H:%M:%S.%f').time()
-	mask=(df['TIME_M'].dt.time>=begin_time)&(df['TIME_M'].dt.time<=end_time)
+	begin_time=datetime.datetime.strptime(CONST_BEGINTIME,'%H:%M:%S').time()
+	end_time=datetime.datetime.strptime(CONST_ENDTIME,'%H:%M:%S').time()
+	mask=(df['TIME'].dt.time>=begin_time)&(df['TIME'].dt.time<=end_time)
 	df=df.loc[mask]
 
-	#we smooth the quotes by second first, to make sure that when we use increment in unit of second, the noise of quotes will not comeinto play
-	df['TIME_S']=df["TIME_M"].dt.floor('s')
-	df=df.groupby(['SYM_ROOT','DATE','TIME_S']).tail(1).reset_index(drop=True) #only keep the last observation per interval. forward fill if the value is missing	
-
 	#calculate the mid price 
-	df['MIDPRICE']=(df['BEST_BID']+df['BEST_ASK'])/2
+	df['MIDPRICE']=(df['BB']+df['BO'])/2
 	#If the first quote has only a bid or an ask, then the mid=max(bid, ask)
-	df.ix[df["BEST_BID"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_BID"]==0, df.columns.get_loc('BEST_ASK')]
-	df.ix[df["BEST_ASK"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BEST_ASK"]==0, df.columns.get_loc('BEST_BID')]
+	df.ix[df["BB"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BB"]==0, df.columns.get_loc('BO')]
+	df.ix[df["BO"]==0, df.columns.get_loc('MIDPRICE')]=df.ix[df["BO"]==0, df.columns.get_loc('BB')]
 
 	#filter the column for bid-ask spreads exceeds $10 and 1000 bps
-	#df['bps']=(df['BEST_ASK']-df['BEST_BID'])/df['MIDPRICE']
-	#df['spread']=df['BEST_ASK']-df['BEST_BID']
+	#df['bps']=(df['BO']-df['BB'])/df['MIDPRICE']
+	#df['spread']=df['BO']-df['BB']
 	#df=df[((df['bps']<0.1) | (df['spread']<10))]
 
-	df['diff']=df['TIME_M']-df['genesis'] #get the time difference from the beginning
+	df['diff']=df['TIME']-df['genesis'] #get the time difference from the beginning
 	df['diff_sec']=df['diff'].dt.seconds 
 	df['increment']=np.floor(df['diff_sec']/CONST_INTERVAL).astype(int) #the time incremental in CONST_INTERVAL
-	df=df.groupby(['SYM_ROOT','DATE','increment']).tail(1).reset_index(drop=True) #only keep the last observation per interval. forward fill if the value is missing
+	df=df.groupby(['SYMBOL','DATE','increment']).tail(1).reset_index(drop=True) #only keep the last observation per interval. forward fill if the value is missing
 
 	#calculate the maximum increment value
 	df['gen_jud_diff'] = df['judgement']-df['genesis']
 	df['gen_jud_diff_sec']=df['gen_jud_diff'].dt.seconds
 	df['genjud_incre']=np.floor(df['gen_jud_diff_sec']/CONST_INTERVAL).astype(int)
 
-	df=df[['TIME_M','SYM_ROOT','increment','genjud_incre','DATE','MIDPRICE']]
+	df=df[['TIME','SYMBOL','increment','genjud_incre','DATE','MIDPRICE']]
 
 	#now expand any gaps in between
-	df=df.groupby(['SYM_ROOT','DATE']).apply(expand_gap)
+	df=df.groupby(['SYMBOL','DATE']).apply(expand_gap)
 	df = df.reset_index(drop=True)
-	df=df.sort_values(['SYM_ROOT','DATE','increment'])
+	df=df.sort_values(['SYMBOL','DATE','increment'])
 	df = df.reset_index(drop=True)
 
 	#re-select columns 
-	df=df[['SYM_ROOT','increment','MIDPRICE','DATE']]
+	df=df[['SYMBOL','increment','MIDPRICE','DATE']]
 
 	#calculate the returns by ticker
-	df=df.groupby(['SYM_ROOT','DATE']).apply(calculate_return)
+	df=df.groupby(['SYMBOL','DATE']).apply(calculate_return)
 
 	#reduce the number of varaibles for PCA
-	df=df[['SYM_ROOT','increment','returns']]
+	df=df[['SYMBOL','increment','returns']]
 	df = df[np.isfinite(df['returns'])]
 	df = df.reset_index(drop=True)
 
 	#reshape for PCA
-	df=df.pivot(index='increment',columns='SYM_ROOT',values='returns')
-
+	df=df.pivot(index='increment',columns='SYMBOL',values='returns')
 	rsq=[] #the dictionary to store R squared
 
 	#start CAPM regression for each column 
@@ -123,7 +119,6 @@ def capm_analysis(name):
 		adjusted_r_squared = 1 - (1-r_squared)*(len(y)-1)/(len(y)-X.shape[1]-1)
 		rsqobj=(column,adjusted_r_squared)
 		rsq.append(rsqobj)
-
 
 	#write adjusted rsquared to file
 	with open(name_date+'_rsq.csv','wb') as out:
@@ -145,7 +140,7 @@ if rank == 0:
 	tmparr=os.listdir("./")
 	arr=[]
 	for t in tmparr:
-		if t[0:4]=='NBBO' and t[-3:]=='csv':
+		if t[0:4]=='NBBO' and t[-3:]=='zip':
 			#confirms that it is the file we want to analyse 
 			arr.append(t)
 	chunks=[[] for _ in range(size)]
@@ -156,4 +151,4 @@ else:
 	chunks=None
 data = comm.scatter(chunks, root=0)
 for d in data: 
-	pca_analysis(d)
+	capm_analysis(d)
