@@ -111,11 +111,11 @@ def capm_analysis(name):
 		coef=model.coef_ #the coefficients
 		#write the coefficients to file 
 		coef.tofile(name_date+'_'+column+"_coef.csv",sep='\n')
-
 		#calculate the adjusted r squared
 		yhat = model.predict(X)
 		SS_Residual = sum((y-yhat)**2)
 		SS_Total = sum((y-np.mean(y))**2)
+		r_squared = 1 - (float(SS_Residual))/SS_Total
 		adjusted_r_squared = 1 - (1-r_squared)*(len(y)-1)/(len(y)-X.shape[1]-1)
 		rsqobj=(column,adjusted_r_squared)
 		rsq.append(rsqobj)
