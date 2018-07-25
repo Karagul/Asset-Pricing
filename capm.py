@@ -106,7 +106,7 @@ def capm_analysis(name):
 	#start CAPM regression for each column 
 	for column in df: 
 		model=linear_model.LinearRegression()
-		X, y = df[column],df['SPY']
+		X, y = df[[column]],df['SPY']
 		res=model.fit(X,y)
 		coef=model.coef_ #the coefficients
 		#write the coefficients to file 
