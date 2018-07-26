@@ -1,4 +1,4 @@
-#PCA Analysis Python Code
+#CAPM Analysis Python Code
 
 from mpi4py import MPI #MPI package for cluster analysis
 import pandas as pd 
