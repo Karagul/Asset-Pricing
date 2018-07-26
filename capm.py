@@ -41,8 +41,8 @@ def capm_analysis(name):
 	#read the zip file and convert it to csv
 	with zipfile.ZipFile(name) as zip:
 		csv_name=name.replace("zip","csv")
-		with zip.open(csv_name) as csv:
-			df=pd.read_csv(csv)
+		with zip.open(csv_name) as csv_file:
+			df=pd.read_csv(csv_file)
 	df['TIME']=df['DATE'].astype(str)+' '+df['TIME']
 	df['genesis']=df['DATE'].astype(str) + ' ' + CONST_BEGINTIME #begin time
 	df['judgement']=df['DATE'].astype(str) + ' ' + CONST_ENDTIME  #end time
@@ -106,7 +106,7 @@ def capm_analysis(name):
 	#start CAPM regression for each column 
 	for column in df: 
 		model=linear_model.LinearRegression()
-		X, y = df[[column]],df['SPY']
+		X, y = df['SPY'], df[[column]]
 		res=model.fit(X,y)
 		coef=model.coef_ #the coefficients
 		#write the coefficients to file 
