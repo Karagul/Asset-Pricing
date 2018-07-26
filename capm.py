@@ -104,7 +104,7 @@ def capm_analysis(name):
 
 	#start CAPM regression for each column 
 	for column in df: 
-		result=sm.ols(formula=df['SPY']+" ~ "+column, data=df).fit()
+		result=sm.ols(formula="SPY"+" ~ "+column, data=df).fit()
 		with open(name_date+"_"+column+"_"+"reg.csv","wb") as attrfile:
 			attrfile.write(result.summary().as_csv())
 
