@@ -4,7 +4,7 @@ from mpi4py import MPI #MPI package for cluster analysis
 import pandas as pd 
 import datetime 
 import numpy as np
-from sklearn import linear_model #package for linear regression
+import statsmodels.formula.api as sm
 import csv
 import os
 import zipfile #read the csv files directly
@@ -101,31 +101,12 @@ def capm_analysis(name):
 
 	#reshape for PCA
 	df=df.pivot(index='increment',columns='SYMBOL',values='returns')
-	rsq=[] #the dictionary to store R squared
 
 	#start CAPM regression for each column 
 	for column in df: 
-		model=linear_model.LinearRegression()
-		X, y = df['SPY'], df[[column]]
-		res=model.fit(X,y)
-		coef=model.coef_ #the coefficients
-		#write the coefficients to file 
-		coef.tofile(name_date+'_'+column+"_coef.csv",sep='\n')
-		#calculate the adjusted r squared
-		yhat = model.predict(X)
-		SS_Residual = sum((y-yhat)**2)
-		SS_Total = sum((y-np.mean(y))**2)
-		r_squared = 1 - (float(SS_Residual))/SS_Total
-		adjusted_r_squared = 1 - (1-r_squared)*(len(y)-1)/(len(y)-X.shape[1]-1)
-		rsqobj=(column,adjusted_r_squared)
-		rsq.append(rsqobj)
-
-	#write adjusted rsquared to file
-	with open(name_date+'_rsq.csv','wb') as out:
-		csv_out=csv.writer(out)
-		csv_out.writerow(['Ticker','adj_R_Squared'])
-		for row in rsq:
-			csv_out.writerow(row)
+		result=sm.ols(formula=df['SPY']+" ~ "+column, data=df).fit()
+		with open(name_date+"_"+column+"_"+"reg.csv","wb") as attrfile:
+			attrfile.write(result.summary().as_csv())
 
 	end=str(datetime.datetime.now())
 	lengths=[]
