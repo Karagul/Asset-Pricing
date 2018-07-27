@@ -4,7 +4,7 @@ from mpi4py import MPI #MPI package for cluster analysis
 import pandas as pd 
 import datetime 
 import numpy as np
-import statsmodels.formula.api as sm
+import statsmodels.api as sm
 import csv
 import os
 import zipfile #read the csv files directly
