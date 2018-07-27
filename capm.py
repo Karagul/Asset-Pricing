@@ -99,12 +99,14 @@ def capm_analysis(name):
 	df = df[np.isfinite(df['returns'])]
 	df = df.reset_index(drop=True)
 
-	#reshape for PCA
+	#reshape for CAPM
 	df=df.pivot(index='increment',columns='SYMBOL',values='returns')
 
 	#start CAPM regression for each column 
 	for column in df: 
-		result=sm.ols(formula="SPY"+" ~ "+column, data=df).fit()
+		Y,X = df[column], df['SPY']
+		X = sm.add_constant(X)
+		result=sm.ols(Y,X).fit()
 		with open(name_date+"_"+column+"_"+"reg.csv","wb") as attrfile:
 			attrfile.write(result.summary().as_csv())
 
