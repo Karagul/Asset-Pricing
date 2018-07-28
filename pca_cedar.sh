@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --time=3:00:00
-#SBATCH --ntask=2
+#SBATCH --ntasks=2
 #SBATCH --mail-user=jw983@jbs.cam.ac.uk
 #SBATCH --mail-type=ALL
 #SBATCH --mem-per-cpu=20G
