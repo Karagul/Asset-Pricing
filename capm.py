@@ -101,15 +101,24 @@ def capm_analysis(name):
 
 	#reshape for CAPM
 	df=df.pivot(index='increment',columns='SYMBOL',values='returns')
-
+	resList=[] #the list that holds all the results 
+	variableRow=['Ticker','Coeff_const','StdErr_const','Tstats_const','Coeff_ticker','StdErr_ticker','Tstats_ticker','Rsq','Adj_Rsq']
+	resList.append(variableRow)
 	#start CAPM regression for each column 
 	for column in df: 
 		Y,X = df[column], df['SPY']
 		X = sm.add_constant(X)
-		result=sm.ols(Y,X).fit()
-		with open(name_date+"_"+column+"_"+"reg.csv","wb") as attrfile:
-			attrfile.write(result.summary().as_csv())
-
+		result=sm.OLS(Y,X).fit()
+		std=result.bse #the standard devitations 
+		tstats=result.tvalues #the t-values
+		rsq_adj=result.rsquared_adj #adjusted r squared
+		rsq=result.rsquared #r squared
+		coefs=result.params #the coefficients 
+		ticker=column
+		#now formulate the results
+		current_res=[column,coefs[0],std[0],tstats[0],coefs[1],std[1],tstats[1],rsq,rsq_adj]
+		resList.append(current_res)
+		
 	end=str(datetime.datetime.now())
 	lengths=[]
 	lengths.append(begin)
