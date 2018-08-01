@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=12:00:00
+#SBATCH --time=5:00:00
 #SBATCH --ntasks=10
 #SBATCH --mail-user=jw983@jbs.cam.ac.uk
 #SBATCH --mail-type=ALL
