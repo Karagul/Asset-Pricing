@@ -9,7 +9,7 @@ import csv
 import os
 import zipfile #read the csv files directly
 
-CONST_INTERVAL=5 #interval in seconds
+CONST_INTERVAL=300 #interval in seconds
 CONST_BEGINTIME='9:30:00'
 CONST_ENDTIME='16:00:00' 
 
